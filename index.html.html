@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Filtros — Maquinaria Pesada</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f1117;
+  --bg2: #181c27;
+  --bg3: #1f2435;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #e8eaf0;
+  --text2: #8b90a0;
+  --text3: #555c70;
+  --accent: #f0a500;
+  --accent2: #d48800;
+  --ok: #2eb87a;
+  --warn: #e8a020;
+  --crit: #e04545;
+  --blue: #3d8ef0;
+  --ok-bg: rgba(46,184,122,0.12);
+  --warn-bg: rgba(232,160,32,0.12);
+  --crit-bg: rgba(224,69,69,0.12);
+  --blue-bg: rgba(61,142,240,0.12);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+/* LAYOUT */
+.shell { display: flex; min-height: 100vh; }
+.sidebar { width: 220px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 50; }
+.main { margin-left: 220px; flex: 1; padding: 2rem; max-width: 1100px; }
+
+/* SIDEBAR */
+.logo { padding: 1.5rem 1.25rem 1rem; border-bottom: 1px solid var(--border); }
+.logo-title { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--accent); letter-spacing: .04em; }
+.logo-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+.nav { padding: 1rem 0; flex: 1; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 1.25rem; font-size: 13px; color: var(--text2); cursor: pointer; transition: all .15s; border-left: 2px solid transparent; }
+.nav-item:hover { color: var(--text); background: rgba(255,255,255,.04); }
+.nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(240,165,0,.07); }
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+.nav-badge { margin-left: auto; background: var(--crit-bg); color: var(--crit); font-family: var(--mono); font-size: 10px; padding: 1px 6px; border-radius: 10px; }
+.sidebar-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--border); font-size: 11px; color: var(--text3); font-family: var(--mono); }
+.status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); margin-right: 6px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* SECTIONS */
+.section { display: none; }
+.section.active { display: block; }
+.page-title { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1.5rem; }
+.page-title span { color: var(--accent); }
+
+/* METRICS */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+.metric { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
+.metric-label { font-size: 11px; color: var(--text3); font-family: var(--mono); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px; }
+.metric-value { font-size: 28px; font-weight: 300; color: var(--text); font-family: var(--mono); }
+.metric-value.crit { color: var(--crit); }
+.metric-value.warn { color: var(--warn); }
+
+/* CARDS */
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+.card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.card-title { font-size: 12px; font-family: var(--mono); color: var(--text3); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+.card-title::before { content: ''; display: inline-block; width: 3px; height: 12px; background: var(--accent); border-radius: 2px; }
+
+/* TABLE */
+.table-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 1rem; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-size: 10px; font-family: var(--mono); color: var(--text3); letter-spacing: .08em; text-transform: uppercase; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg3); }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,.02); }
+.td-primary { font-weight: 500; color: var(--text); }
+.td-mono { font-family: var(--mono); font-size: 12px; color: var(--text2); }
+.td-muted { font-size: 12px; color: var(--text2); }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-family: var(--mono); padding: 2px 8px; border-radius: 4px; font-weight: 400; }
+.badge-ok { background: var(--ok-bg); color: var(--ok); }
+.badge-warn { background: var(--warn-bg); color: var(--warn); }
+.badge-crit { background: var(--crit-bg); color: var(--crit); }
+.badge-blue { background: var(--blue-bg); color: var(--blue); }
+.badge-gray { background: rgba(255,255,255,.06); color: var(--text2); }
+
+/* BUTTONS */
+.btn { font-size: 12px; font-family: var(--sans); padding: 6px 14px; border-radius: var(--radius); border: 1px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { background: rgba(255,255,255,.06); color: var(--text); }
+.btn-primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 500; }
+.btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
+.btn-danger { color: var(--crit); border-color: rgba(224,69,69,.3); }
+.btn-danger:hover { background: var(--crit-bg); }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.btn-group { display: flex; gap: 8px; align-items: center; }
+
+/* SECTION HEADER */
+.sec-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.sec-hdr h2 { font-size: 15px; font-weight: 500; }
+
+/* FORMS */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.fg { display: flex; flex-direction: column; gap: 5px; }
+.fg label { font-size: 11px; font-family: var(--mono); color: var(--text3); letter-spacing: .04em; text-transform: uppercase; }
+.fg input, .fg select, .fg textarea {
+  background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius);
+  color: var(--text); font-size: 13px; font-family: var(--sans); padding: 8px 12px;
+  outline: none; transition: border-color .15s;
+}
+.fg input:focus, .fg select:focus { border-color: var(--accent); }
+.fg select option { background: var(--bg3); }
+
+/* MODAL */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200; align-items: flex-start; justify-content: center; padding-top: 60px; backdrop-filter: blur(4px); }
+.overlay.open { display: flex; }
+.modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-lg); padding: 1.75rem; width: 90%; max-width: 480px; max-height: 85vh; overflow-y: auto; }
+.modal-title { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1.25rem; padding-bottom: .75rem; border-bottom: 1px solid var(--border); }
+.modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.25rem; padding-top: .75rem; border-top: 1px solid var(--border); }
+
+/* ALERT ROWS */
+.alert-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.alert-row:last-child { border-bottom: none; }
+.alert-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.alert-dot.crit { background: var(--crit); box-shadow: 0 0 6px var(--crit); }
+.alert-dot.warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+
+/* PROGRESS */
+.prog { height: 4px; background: rgba(255,255,255,.08); border-radius: 2px; margin-top: 5px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 2px; transition: width .3s; }
+
+/* LOADING / TOAST */
+.loader { display: none; position: fixed; top: 1rem; right: 1rem; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius); padding: 10px 16px; font-family: var(--mono); font-size: 12px; color: var(--accent); z-index: 999; }
+.loader.show { display: flex; align-items: center; gap: 8px; }
+.spin { width: 14px; height: 14px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.toast { display: none; position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius); padding: 12px 18px; font-size: 13px; z-index: 999; max-width: 320px; }
+.toast.show { display: block; }
+.toast.ok { border-color: var(--ok); color: var(--ok); }
+.toast.err { border-color: var(--crit); color: var(--crit); }
+
+/* FILTER BAR */
+.filter-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+.filter-bar label { font-size: 11px; font-family: var(--mono); color: var(--text3); }
+.filter-bar select { background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text); font-size: 12px; padding: 5px 10px; }
+
+/* PANEL LIST */
+.panel-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.panel-item:last-child { border-bottom: none; }
+.panel-item-main { font-size: 13px; font-weight: 500; }
+.panel-item-sub { font-size: 11px; color: var(--text3); font-family: var(--mono); margin-top: 2px; }
+
+/* EMPTY */
+.empty { text-align: center; padding: 3rem; color: var(--text3); font-family: var(--mono); font-size: 12px; }
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .sidebar { width: 100%; height: auto; position: relative; flex-direction: row; flex-wrap: wrap; }
+  .main { margin-left: 0; padding: 1rem; }
+  .shell { flex-direction: column; }
+  .card-grid { grid-template-columns: 1fr; }
+  .form-grid, .form-grid3 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="loader" class="loader"><div class="spin"></div> Guardando...</div>
+<div id="toast" class="toast"></div>
+
+<div class="shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-title">⬡ FILTROS</div>
+      <div class="logo-sub">Maquinaria pesada</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" onclick="goSec('panel',this)" data-sec="panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Panel
+      </div>
+      <div class="nav-item" onclick="goSec('obras',this)" data-sec="obras">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21h18M9 21V7l6-4v18"/><path d="M9 12h6"/></svg>
+        Obras
+      </div>
+      <div class="nav-item" onclick="goSec('maquinas',this)" data-sec="maquinas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3"/><rect x="9" y="11" width="14" height="10" rx="2"/><circle cx="12" cy="16" r="1"/><circle cx="20" cy="16" r="1"/></svg>
+        Máquinas
+      </div>
+      <div class="nav-item" onclick="goSec('stock',this)" data-sec="stock">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 3H8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z"/></svg>
+        Stock
+      </div>
+      <div class="nav-item" onclick="goSec('cambio',this)" data-sec="cambio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+        Registrar cambio
+      </div>
+      <div class="nav-item" onclick="goSec('historial',this)" data-sec="historial">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        Historial
+      </div>
+      <div class="nav-item" onclick="goSec('alertas',this)" data-sec="alertas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Alertas
+        <span id="nbadge" class="nav-badge" style="display:none">0</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer"><span class="status-dot"></span>Conectado a Supabase</div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- PANEL -->
+    <div id="sec-panel" class="section active">
+      <div class="page-title">/ <span>panel</span> / resumen general</div>
+      <div class="metrics" id="metrics"></div>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title">Próximos cambios por horómetro</div>
+          <div id="prox-panel"><div class="empty">Sin datos</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Stock crítico</div>
+          <div id="stock-crit-panel"><div class="empty">Sin datos</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OBRAS -->
+    <div id="sec-obras" class="section">
+      <div class="page-title">/ <span>obras</span> / proyectos activos</div>
+      <div class="sec-hdr">
+        <h2>Obras registradas</h2>
+        <button class="btn btn-primary" onclick="openModal('m-obra')">+ Nueva obra</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Ubicación</th><th>Estado</th><th>Máquinas</th><th></th></tr></thead><tbody id="t-obras"></tbody></table></div>
+    </div>
+
+    <!-- MÁQUINAS -->
+    <div id="sec-maquinas" class="section">
+      <div class="page-title">/ <span>maquinas</span> / flota registrada</div>
+      <div class="sec-hdr">
+        <h2>Maquinaria</h2>
+        <button class="btn btn-primary" onclick="openModal('m-maq')">+ Nueva máquina</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Interno</th><th>Tipo / Marca</th><th>Patente</th><th>N° Serie</th><th>Obra</th><th>Horómetro</th><th></th></tr></thead><tbody id="t-maquinas"></tbody></table></div>
+    </div>
+
+    <!-- STOCK -->
+    <div id="sec-stock" class="section">
+      <div class="page-title">/ <span>stock</span> / inventario de filtros</div>
+      <div class="sec-hdr">
+        <h2>Filtros en stock</h2>
+        <button class="btn btn-primary" onclick="openModal('m-filtro')">+ Nuevo filtro</button>
+      </div>
+      <div class="filter-bar">
+        <label>Obra:</label>
+        <select id="sel-obra-stock" onchange="renderStock()"><option value="">Todas</option></select>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Código / Nombre</th><th>Tipo</th><th>Obra</th><th>Marca compat.</th><th>Stock</th><th>Mínimo</th><th>Intervalo (hs)</th><th>Estado</th><th></th></tr></thead><tbody id="t-stock"></tbody></table></div>
+    </div>
+
+    <!-- CAMBIO -->
+    <div id="sec-cambio" class="section">
+      <div class="page-title">/ <span>cambio</span> / registrar reemplazo</div>
+      <h2 style="font-size:15px;font-weight:500;margin-bottom:1.25rem">Registrar cambio de filtro</h2>
+      <div class="card">
+        <div class="form-grid">
+          <div class="fg"><label>Máquina</label><select id="c-maq" onchange="autoHorometro()"></select></div>
+          <div class="fg"><label>Horómetro actual (hs)</label><input type="number" id="c-horometro" min="0" placeholder="Ej: 4350"></div>
+        </div>
+        <div class="form-grid">
+          <div class="fg"><label>Filtro del stock</label><select id="c-filtro"></select></div>
+          <div class="fg"><label>Cantidad</label><input type="number" id="c-cant" min="1" value="1"></div>
+        </div>
+        <div class="form-grid3">
+          <div class="fg"><label>Tipo de filtro</label><select id="c-tipo"><option>Aceite motor</option><option>Aire primario</option><option>Aire secundario</option><option>Combustible</option><option>Hidráulico</option><option>Separador agua-combustible</option><option>Otro</option></select></div>
+          <div class="fg"><label>Próximo cambio a (hs)</label><input type="number" id="c-proxhs" placeholder="Ej: 4600"></div>
+          <div class="fg"><label>Técnico responsable</label><input type="text" id="c-tecnico" placeholder="Nombre y apellido"></div>
+        </div>
+        <div class="fg" style="margin-bottom:1rem"><label>Observaciones</label><input type="text" id="c-obs" placeholder="Estado del filtro, anomalías, etc."></div>
+        <button class="btn btn-primary" onclick="registrarCambio()">Registrar cambio</button>
+      </div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div id="sec-historial" class="section">
+      <div class="page-title">/ <span>historial</span> / registro de cambios</div>
+      <div class="sec-hdr"><h2>Historial de cambios</h2></div>
+      <div class="filter-bar">
+        <label>Máquina:</label>
+        <select id="h-maq" onchange="renderHistorial()"><option value="">Todas</option></select>
+        <label>Obra:</label>
+        <select id="h-obra" onchange="renderHistorial()"><option value="">Todas</option></select>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Máquina</th><th>Obra</th><th>Filtro / Tipo</th><th>Cant.</th><th>Horómetro</th><th>Próx. cambio</th><th>Técnico</th><th>Obs.</th></tr></thead><tbody id="t-historial"></tbody></table></div>
+    </div>
+
+    <!-- ALERTAS -->
+    <div id="sec-alertas" class="section">
+      <div class="page-title">/ <span>alertas</span> / atención requerida</div>
+      <h2 style="font-size:15px;font-weight:500;margin-bottom:1rem">Alertas activas</h2>
+      <div id="lista-alertas"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODALES -->
+<div class="overlay" id="m-obra">
+  <div class="modal">
+    <div class="modal-title">// Nueva obra</div>
+    <div class="form-grid">
+      <div class="fg"><label>Nombre de la obra</label><input type="text" id="o-nombre" placeholder="Ej: Ruta 9 km 34"></div>
+      <div class="fg"><label>Ubicación</label><input type="text" id="o-ubic" placeholder="Ej: Villa María, Córdoba"></div>
+    </div>
+    <div class="fg" style="margin-bottom:12px"><label>Estado</label>
+      <select id="o-estado"><option value="activa">Activa</option><option value="pausada">Pausada</option><option value="finalizada">Finalizada</option></select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('m-obra')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarObra()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="m-maq">
+  <div class="modal">
+    <div class="modal-title">// Nueva máquina</div>
+    <div class="form-grid">
+      <div class="fg"><label>N° interno</label><input type="text" id="mq-interno" placeholder="Ej: MAQ-07"></div>
+      <div class="fg"><label>Tipo</label><select id="mq-tipo"><option>Excavadora</option><option>Topadora</option><option>Motoniveladora</option><option>Camión</option><option>Compactadora</option><option>Retroexcavadora</option><option>Grúa</option><option>Otro</option></select></div>
+    </div>
+    <div class="form-grid">
+      <div class="fg"><label>Marca</label><input type="text" id="mq-marca" placeholder="Ej: Caterpillar"></div>
+      <div class="fg"><label>Modelo</label><input type="text" id="mq-modelo" placeholder="Ej: 320D"></div>
+    </div>
+    <div class="form-grid">
+      <div class="fg"><label>N° de serie</label><input type="text" id="mq-serie" placeholder="Ej: CAT0320D..."></div>
+      <div class="fg"><label>Patente / dominio</label><input type="text" id="mq-patente" placeholder="Ej: AB 123 CD"></div>
+    </div>
+    <div class="form-grid">
+      <div class="fg"><label>Obra asignada</label><select id="mq-obra"></select></div>
+      <div class="fg"><label>Horómetro inicial (hs)</label><input type="number" id="mq-horometro" min="0" value="0"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('m-maq')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarMaq()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="m-filtro">
+  <div class="modal">
+    <div class="modal-title">// Nuevo filtro en stock</div>
+    <div class="form-grid">
+      <div class="fg"><label>Nombre / código</label><input type="text" id="f-nombre" placeholder="Ej: FLT-ACE-001"></div>
+      <div class="fg"><label>Tipo</label><select id="f-tipo"><option>Aceite motor</option><option>Aire primario</option><option>Aire secundario</option><option>Combustible</option><option>Hidráulico</option><option>Separador agua-combustible</option><option>Otro</option></select></div>
+    </div>
+    <div class="form-grid">
+      <div class="fg"><label>Obra / depósito</label><select id="f-obra"></select></div>
+      <div class="fg"><label>Marca compatible</label><input type="text" id="f-marca" placeholder="Ej: CAT, Komatsu..."></div>
+    </div>
+    <div class="form-grid3">
+      <div class="fg"><label>Stock actual</label><input type="number" id="f-stock" min="0" value="0"></div>
+      <div class="fg"><label>Stock mínimo</label><input type="number" id="f-min" min="0" value="2"></div>
+      <div class="fg"><label>Intervalo cambio (hs)</label><input type="number" id="f-intervalo" placeholder="Ej: 250"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('m-filtro')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarFiltro()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="m-ajuste">
+  <div class="modal">
+    <div class="modal-title">// Ajustar stock — <span id="aj-nombre"></span></div>
+    <input type="hidden" id="aj-id">
+    <div class="fg" style="margin-bottom:12px"><label>Nuevo stock</label><input type="number" id="aj-stock" min="0"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('m-ajuste')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarAjuste()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIGURACIÓN SUPABASE ───────────────────────────────────────────────────
+const SUPABASE_URL = 'https://dqqgxsojjkrvkgyjdebd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable__s0a2Ef-12X8gPTWN_rqCQ_7F7j6SQI';
+
+const headers = {
+  'Content-Type': 'application/json',
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+  'Prefer': 'return=representation'
+};
+
+async function sb(table, method='GET', body=null, query='') {
+  const url = `${SUPABASE_URL}/rest/v1/${table}${query}`;
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
+  if (method === 'DELETE' || res.status === 204) return [];
+  return res.json();
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let obras = [], maquinas = [], filtros = [], historial = [];
+
+// ─── UI HELPERS ───────────────────────────────────────────────────────────────
+function loading(show) {
+  document.getElementById('loader').className = 'loader' + (show ? ' show' : '');
+}
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  setTimeout(() => el.className = 'toast', 3000);
+}
+function openModal(id) { document.getElementById(id).classList.add('open'); populateModalSelects(); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
+
+function goSec(name, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('sec-' + name).classList.add('active');
+  el.classList.add('active');
+  renderAll();
+}
+
+// ─── LOAD DATA ────────────────────────────────────────────────────────────────
+async function loadAll() {
+  loading(true);
+  try {
+    [obras, maquinas, filtros, historial] = await Promise.all([
+      sb('obras', 'GET', null, '?order=id'),
+      sb('maquinas', 'GET', null, '?order=id'),
+      sb('filtros', 'GET', null, '?order=id'),
+      sb('historial', 'GET', null, '?order=fecha.desc,id.desc')
+    ]);
+    renderAll();
+  } catch(e) {
+    toast('Error al cargar datos: ' + e.message, 'err');
+  }
+  loading(false);
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function obraById(id) { return obras.find(o => o.id === id); }
+function maqById(id) { return maquinas.find(m => m.id === id); }
+function filtById(id) { return filtros.find(f => f.id === id); }
+
+function estadoBadge(e) {
+  const map = { activa: 'badge-ok', pausada: 'badge-warn', finalizada: 'badge-gray' };
+  return `<span class="badge ${map[e]||'badge-gray'}">${e}</span>`;
+}
+function stockBadge(f) {
+  if (f.stock === 0) return '<span class="badge badge-crit">Sin stock</span>';
+  if (f.stock <= f.minimo) return '<span class="badge badge-warn">Stock bajo</span>';
+  return '<span class="badge badge-ok">OK</span>';
+}
+function progBar(val, max, color) {
+  const p = Math.min(100, Math.round((val / Math.max(max, 1)) * 100));
+  return `<div class="prog"><div class="prog-fill" style="width:${p}%;background:${color}"></div></div>`;
+}
+
+function getAlertas() {
+  const al = [];
+  filtros.forEach(f => {
+    if (f.stock === 0) al.push({ sev: 'crit', msg: `Sin stock — <strong>${f.nombre}</strong> (${f.tipo}) en <strong>${obraById(f.obra_id)?.nombre || '—'}</strong>. Mínimo: ${f.minimo}` });
+    else if (f.stock <= f.minimo) al.push({ sev: 'warn', msg: `Stock bajo — <strong>${f.nombre}</strong> (${f.tipo}) en <strong>${obraById(f.obra_id)?.nombre || '—'}</strong>. Stock: ${f.stock} / mín: ${f.minimo}` });
+  });
+  historial.filter(h => h.prox_hs).forEach(h => {
+    const maq = maqById(h.maq_id);
+    if (!maq) return;
+    const rest = h.prox_hs - maq.horometro;
+    if (rest <= 50) {
+      const lab = rest < 0 ? `vencido hace ${Math.abs(rest)} hs` : `faltan ${rest} hs`;
+      al.push({ sev: rest < 0 ? 'crit' : 'warn', msg: `Cambio de <strong>${h.tipo}</strong> en <strong>${maq.interno} ${maq.marca} ${maq.modelo}</strong> — ${lab} (prox: ${h.prox_hs} hs, actual: ${maq.horometro} hs)` });
+    }
+  });
+  return al;
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderMetrics();
+  renderPanel();
+  renderObras();
+  renderMaquinas();
+  renderStock();
+  renderHistorial();
+  renderAlertas();
+  updateBadge();
+  populateSelects();
+  populateCambioSelects();
+}
+
+function renderMetrics() {
+  const al = getAlertas();
+  const crit = al.filter(a => a.sev === 'crit').length;
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Obras activas</div><div class="metric-value">${obras.filter(o=>o.estado==='activa').length}</div></div>
+    <div class="metric"><div class="metric-label">Máquinas</div><div class="metric-value">${maquinas.length}</div></div>
+    <div class="metric"><div class="metric-label">Tipos de filtro</div><div class="metric-value">${filtros.length}</div></div>
+    <div class="metric"><div class="metric-label">Alertas críticas</div><div class="metric-value ${crit>0?'crit':''}">${crit}</div></div>
+  `;
+}
+
+function renderPanel() {
+  const proximos = [];
+  historial.filter(h => h.prox_hs).forEach(h => {
+    const maq = maqById(h.maq_id);
+    if (!maq) return;
+    const rest = h.prox_hs - maq.horometro;
+    if (rest <= 200) proximos.push({ rest, h, maq });
+  });
+  proximos.sort((a, b) => a.rest - b.rest);
+  const pp = document.getElementById('prox-panel');
+  pp.innerHTML = proximos.length ? proximos.slice(0, 5).map(({ rest, h, maq }) => {
+    const cl = rest < 0 ? 'badge-crit' : rest <= 50 ? 'badge-warn' : 'badge-blue';
+    const lab = rest < 0 ? `Vencido ${Math.abs(rest)}hs` : rest === 0 ? 'Ahora' : `${rest} hs`;
+    return `<div class="panel-item"><div><div class="panel-item-main">${maq.interno} — ${maq.modelo}</div><div class="panel-item-sub">${h.tipo}</div></div><span class="badge ${cl}">${lab}</span></div>`;
+  }).join('') : '<div class="empty">Sin cambios próximos (≤200 hs)</div>';
+
+  const criticos = filtros.filter(f => f.stock <= f.minimo);
+  const sc = document.getElementById('stock-crit-panel');
+  sc.innerHTML = criticos.length ? criticos.map(f => `
+    <div class="panel-item">
+      <div><div class="panel-item-main">${f.nombre}</div><div class="panel-item-sub">${obraById(f.obra_id)?.nombre || '—'}</div></div>
+      <span class="badge ${f.stock===0?'badge-crit':'badge-warn'}">${f.stock===0?'Sin stock':'Stock: '+f.stock}</span>
+    </div>`).join('') : '<div class="empty">Sin stock crítico</div>';
+}
+
+function renderObras() {
+  const tb = document.getElementById('t-obras');
+  if (!tb) return;
+  tb.innerHTML = obras.map(o => {
+    const n = maquinas.filter(m => m.obra_id === o.id).length;
+    return `<tr>
+      <td class="td-primary">${o.nombre}</td>
+      <td class="td-muted">${o.ubicacion || '—'}</td>
+      <td>${estadoBadge(o.estado)}</td>
+      <td><span class="badge badge-blue">${n} máquina${n!==1?'s':''}</span></td>
+      <td><button class="btn btn-sm btn-danger" onclick="eliminarObra(${o.id})">Eliminar</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5"><div class="empty">Sin obras registradas</div></td></tr>';
+}
+
+function renderMaquinas() {
+  const tb = document.getElementById('t-maquinas');
+  if (!tb) return;
+  tb.innerHTML = maquinas.map(m => {
+    const obra = obraById(m.obra_id);
+    return `<tr>
+      <td><span class="badge badge-gray td-mono">${m.interno}</span></td>
+      <td><div class="td-primary">${m.tipo}</div><div class="td-muted">${m.marca} ${m.modelo}</div></td>
+      <td class="td-mono">${m.patente || '—'}</td>
+      <td class="td-mono" style="font-size:11px">${m.serie || '—'}</td>
+      <td>${obra ? `<span class="badge badge-blue">${obra.nombre}</span>` : '<span class="td-muted">Sin asignar</span>'}</td>
+      <td><span class="td-mono">${(m.horometro||0).toLocaleString()} hs</span></td>
+      <td><button class="btn btn-sm btn-danger" onclick="eliminarMaq(${m.id})">Eliminar</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7"><div class="empty">Sin máquinas registradas</div></td></tr>';
+}
+
+function renderStock() {
+  const tb = document.getElementById('t-stock');
+  if (!tb) return;
+  const sel = document.getElementById('sel-obra-stock');
+  let lista = filtros;
+  if (sel && sel.value) lista = lista.filter(f => f.obra_id == sel.value);
+  tb.innerHTML = lista.map(f => {
+    const obra = obraById(f.obra_id);
+    const pct = Math.min(100, Math.round((f.stock / Math.max((f.minimo||1)*2, 1)) * 100));
+    const color = f.stock === 0 ? 'var(--crit)' : f.stock <= f.minimo ? 'var(--warn)' : 'var(--ok)';
+    return `<tr>
+      <td><div class="td-primary">${f.nombre}</div><div class="td-mono" style="font-size:11px">${f.marca||''}</div></td>
+      <td><span class="badge badge-blue">${f.tipo}</span></td>
+      <td class="td-muted">${obra?.nombre || '—'}</td>
+      <td class="td-muted">${f.marca || '—'}</td>
+      <td><span style="font-weight:500">${f.stock}</span>${progBar(f.stock,(f.minimo||1)*2,color)}</td>
+      <td class="td-mono">${f.minimo}</td>
+      <td class="td-mono">${f.intervalo ? f.intervalo+' hs' : '—'}</td>
+      <td>${stockBadge(f)}</td>
+      <td><div class="btn-group">
+        <button class="btn btn-sm" onclick="abrirAjuste(${f.id})">Ajustar</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminarFiltro(${f.id})">Eliminar</button>
+      </div></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="9"><div class="empty">Sin filtros registrados</div></td></tr>';
+}
+
+function renderHistorial() {
+  const tb = document.getElementById('t-historial');
+  if (!tb) return;
+  const hm = document.getElementById('h-maq');
+  const ho = document.getElementById('h-obra');
+  if (hm) { const c=hm.value; hm.innerHTML='<option value="">Todas</option>'+maquinas.map(m=>`<option value="${m.id}"${c==m.id?' selected':''}>${m.interno} — ${m.modelo}</option>`).join(''); if(c)hm.value=c; }
+  if (ho) { const c=ho.value; ho.innerHTML='<option value="">Todas</option>'+obras.map(o=>`<option value="${o.id}"${c==o.id?' selected':''}>${o.nombre}</option>`).join(''); if(c)ho.value=c; }
+  let hist = [...historial];
+  if (hm && hm.value) hist = hist.filter(h => h.maq_id == hm.value);
+  if (ho && ho.value) hist = hist.filter(h => { const m=maqById(h.maq_id); return m && m.obra_id == ho.value; });
+  tb.innerHTML = hist.map(h => {
+    const maq = maqById(h.maq_id);
+    const obra = maq ? obraById(maq.obra_id) : null;
+    const rest = h.prox_hs && maq ? h.prox_hs - maq.horometro : null;
+    let proxStyle = '';
+    if (rest !== null) { if (rest < 0) proxStyle='color:var(--crit);font-weight:500'; else if (rest<=50) proxStyle='color:var(--warn);font-weight:500'; }
+    return `<tr>
+      <td class="td-mono" style="font-size:12px">${h.fecha}</td>
+      <td><div class="td-primary">${maq?maq.interno:'—'}</div><div class="td-muted">${maq?maq.marca+' '+maq.modelo:''}</div></td>
+      <td class="td-muted">${obra?.nombre||'—'}</td>
+      <td><div>${h.filtro_nombre||'—'}</div><span class="badge badge-blue" style="margin-top:3px">${h.tipo||''}</span></td>
+      <td class="td-mono" style="text-align:center">${h.cantidad}</td>
+      <td class="td-mono">${(h.horometro||0).toLocaleString()} hs</td>
+      <td class="td-mono" style="${proxStyle}">${h.prox_hs ? h.prox_hs.toLocaleString()+' hs'+(rest!==null?' ('+(rest>=0?'+':'')+rest+'hs)':'') : '—'}</td>
+      <td class="td-muted">${h.tecnico||'—'}</td>
+      <td class="td-muted" style="font-size:12px">${h.obs||'—'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="9"><div class="empty">Sin registros</div></td></tr>';
+}
+
+function renderAlertas() {
+  const el = document.getElementById('lista-alertas');
+  if (!el) return;
+  const al = getAlertas();
+  if (!al.length) {
+    el.innerHTML = `<div class="card" style="text-align:center;padding:3rem">
+      <div style="font-size:32px;margin-bottom:12px">✓</div>
+      <div style="color:var(--ok);font-family:var(--mono);font-size:13px">Sin alertas activas. Todo en orden.</div>
+    </div>`;
+    return;
+  }
+  el.innerHTML = `<div class="card">${al.map(a=>`
+    <div class="alert-row">
+      <div class="alert-dot ${a.sev}"></div>
+      <div style="flex:1;font-size:13px">${a.msg}</div>
+      <span class="badge ${a.sev==='crit'?'badge-crit':'badge-warn'}">${a.sev==='crit'?'Crítico':'Advertencia'}</span>
+    </div>`).join('')}</div>`;
+}
+
+function updateBadge() {
+  const n = getAlertas().length;
+  const b = document.getElementById('nbadge');
+  b.textContent = n;
+  b.style.display = n > 0 ? 'inline' : 'none';
+}
+
+function populateSelects() {
+  const s = document.getElementById('sel-obra-stock');
+  if (s) { const c=s.value; s.innerHTML='<option value="">Todas</option>'+obras.map(o=>`<option value="${o.id}"${c==o.id?' selected':''}>${o.nombre}</option>`).join(''); if(c)s.value=c; }
+}
+
+function populateModalSelects() {
+  ['mq-obra','f-obra'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = obras.map(o=>`<option value="${o.id}">${o.nombre}</option>`).join('');
+  });
+}
+
+function populateCambioSelects() {
+  const cm = document.getElementById('c-maq');
+  if (cm) cm.innerHTML = maquinas.map(m=>`<option value="${m.id}">${m.interno} — ${m.marca} ${m.modelo} (${(m.horometro||0).toLocaleString()} hs)</option>`).join('');
+  const cf = document.getElementById('c-filtro');
+  if (cf) cf.innerHTML = filtros.map(f=>`<option value="${f.id}">${f.nombre} — ${f.tipo} (stock: ${f.stock})</option>`).join('');
+}
+
+function autoHorometro() {
+  const id = parseInt(document.getElementById('c-maq').value);
+  const maq = maqById(id);
+  if (maq) document.getElementById('c-horometro').value = maq.horometro || 0;
+}
+
+// ─── CRUD OBRAS ───────────────────────────────────────────────────────────────
+async function guardarObra() {
+  const nombre = document.getElementById('o-nombre').value.trim();
+  const ubicacion = document.getElementById('o-ubic').value.trim();
+  const estado = document.getElementById('o-estado').value;
+  if (!nombre) { toast('Ingresá el nombre de la obra','err'); return; }
+  loading(true);
+  try {
+    const [nueva] = await sb('obras','POST',{nombre,ubicacion,estado});
+    obras.push(nueva);
+    closeModal('m-obra');
+    ['o-nombre','o-ubic'].forEach(id=>document.getElementById(id).value='');
+    renderAll();
+    toast('Obra guardada correctamente');
+  } catch(e) { toast('Error: '+e.message,'err'); }
+  loading(false);
+}
+
+async function eliminarObra(id) {
+  if (!confirm('¿Eliminar esta obra?')) return;
+  loading(true);
+  try {
+    await sb('obras','DELETE',null,`?id=eq.${id}`);
+    obras = obras.filter(o=>o.id!==id);
+    renderAll();
+    toast('Obra eliminada');
+  } catch(e) { toast('Error: '+e.message,'err'); }
+  loading(false);
+}
+
+// ─── CRUD MÁQUINAS ────────────────────────────────────────────────────────────
+async function guardarMaq() {
+  const interno = document.getElementById('mq-interno').value.trim();
+  const tipo = document.getElementById('mq-tipo').value;
+  const marca = document.getElementById('mq-marca').value.trim();
+  const modelo = document.getElementById('mq-modelo').value.trim();
+  const serie = document.getElementById('mq-serie').value.trim();
+  const patente = document.getElementById('mq-patente').value.trim();
+  const obra_id = parseInt(document.getElementById('mq-obra').value);
+  const horometro = parseInt(document.getElementById('mq-horometro').value)||0;
+  if (!interno||!marca||!modelo) { toast('Completá interno, marca y modelo','err'); return; }
+  loading(true);
+  try {
+    const [nueva] = await sb('maquinas','POST',{interno,tipo,marca,modelo,serie,patente,obra_id,horometro});
+    maquinas.push(nueva);
+    closeModal('m-maq');
+    ['mq-interno','mq-marca','mq-modelo','mq-serie','mq-patente'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('mq-horometro').value='0';
+    renderAll();
+    toast('Máquina guardada correctamente');
+  } catch(e) { toast('Error: '+e.message,'err'); }
+  loading(false);
+}
+
+async function eliminarMaq(id) {
+  if (!confirm('¿Eliminar esta máquina?')) return;
+  loading(true);
+  try {
+    await sb('maquinas','DELETE',null,`?id=eq.${id}`);
+    maquinas = maquinas.filter(m=>m.id!==id);
+    renderAll();
+    toast('Máquina eliminada');
+  } catch(e) { toast('Error: '+e.message,'err'); }
+  loading(false);
+}
+
+// ─── CRUD FILTROS ─────────────────────────────────────────────────────────────
+async function guardarFiltro() {
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const tipo = document.getElementById('f-tipo').value;
+  const obra_id = parseInt(document.getElementById('f-obra').value);
+  const marca = document.getElementById('f-marca').value.trim();
+  const stock = parseInt(document.getElementById('f-stock').value)||0;
+  const minimo = parseInt(document.getElementById('f-min').value)||2;
+  const intervalo = parseInt(document.getElementById('f-intervalo').value)||null;
+  if (!nombre) { toast('Ingresá el nombre del filtro','err'); return; }
+  loading(true);
+  try {
+    const [nuevo] = await sb('filtros','POST',{nombre,tipo,obra_id,marca,stock,minimo,intervalo});
+    filtros.push(nuevo);
+    closeModal('m-filtro');
+    ['f-nombre','f-marca','f-intervalo'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-stock').value='0';
+    document.getElementById('f-min').value='2';
+    renderAll();
+    toast('Filtro guardado correctamente');
+  } catch(e) { toast('Error: '+e.message,'err'); }
+  loading(false);
+}
+
+async function eliminarFiltro(id) {
+  if (!confirm('¿Eliminar este filtro?')) return;
+  loading(true);
+  try {
+    await sb('filtros','DELETE',null,`?id=eq.${id}`);
+    filtros = filtros.filter(f=>f.id!==id);
+    renderAll();
+    toast('Filtro eliminado');
+  } catch(e) { toast('Error: '+e.message,'err'); }
+  loading(false);
+}
+
+async function abrirAjuste(id) {
+  const f = filtById(id);
+  document.getElementById('aj-id').value = id;
+  document.getElementById('aj-nombre').textContent = f.nombre;
+  document.getElementById('aj-stock').value = f.stock;
+  openModal('m-ajuste');
+}
+
+async function guardarAjuste() {
+  const id = parseInt(document.getElementById('aj-id').value);
+  const stock = parseInt(document.getElementById('aj-stock').value)||0;
+  loading(true);
+  try {
+    await sb('filtros','PATCH',{stock},`?id=eq.${id}`);
+    const f = filtById(id);
+    if (f) f.stock = stock;
+    closeModal('m-ajuste');
+    renderAll();
+    toast('Stock actualizado');
+  } catch(e) { toast('Error: '+e.message,'err'); }
+  loading(false);
+}
+
+// ─── REGISTRAR CAMBIO ─────────────────────────────────────────────────────────
+async function registrarCambio() {
+  const maq_id = parseInt(document.getElementById('c-maq').value);
+  const filtro_id = parseInt(document.getElementById('c-filtro').value);
+  const horometro = parseInt(document.getElementById('c-horometro').value);
+  const cantidad = parseInt(document.getElementById('c-cant').value)||1;
+  const tipo = document.getElementById('c-tipo').value;
+  const prox_hs = parseInt(document.getElementById('c-proxhs').value)||null;
+  const tecnico = document.getElementById('c-tecnico').value.trim();
+  const obs = document.getElementById('c-obs').value.trim();
+
+  if (!horometro) { toast('Ingresá el horómetro actual','err'); return; }
+  const maq = maqById(maq_id);
+  const filt = filtById(filtro_id);
+  if (!maq||!filt) { toast('Seleccioná máquina y filtro','err'); return; }
+  if (filt.stock < cantidad) { toast(`Stock insuficiente. Stock actual: ${filt.stock}`,'err'); return; }
+
+  loading(true);
+  try {
+    const fecha = new Date().toISOString().split('T')[0];
+    const nuevoStock = filt.stock - cantidad;
+    const nuevoHorometro = Math.max(maq.horometro||0, horometro);
+
+    await Promise.all([
+      sb('filtros','PATCH',{stock: nuevoStock},`?id=eq.${filtro_id}`),
+      sb('maquinas','PATCH',{horometro: nuevoHorometro},`?id=eq.${maq_id}`)
+    ]);
+
+    const [nuevo] = await sb('historial','POST',{
+      fecha, maq_id, filtro_nombre: filt.nombre,
+      tipo, cantidad, horometro, prox_hs, tecnico, obs
+    });
+
+    filt.stock = nuevoStock;
+    maq.horometro = nuevoHorometro;
+    historial.unshift(nuevo);
+
+    ['c-horometro','c-proxhs','c-tecnico','c-obs'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('c-cant').value='1';
+    renderAll();
+    toast(`✓ Cambio registrado — ${filt.nombre} en ${maq.interno}`);
+  } catch(e) { toast('Error: '+e.message,'err'); }
+  loading(false);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>
